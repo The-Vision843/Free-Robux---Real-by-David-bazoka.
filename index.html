@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Popup Chaos</title>
+</head>
+<body>
+  <h1>Popup Chaos - Opens 50 fast-moving tabs every 10 seconds</h1>
+  <button id="startBtn">Start</button>
+  <button id="stopBtn" disabled>Stop</button>
+
+  <script>
+    let intervalId = null;
+    let popups = [];
+    let popupMovers = [];
+
+    const popupWidth = 200;
+    const popupHeight = 200;
+
+    function isInsideAvoidZone(x, y, avoidX, avoidY, avoidWidth, avoidHeight) {
+      return (
+        x >= avoidX &&
+        x <= avoidX + avoidWidth &&
+        y >= avoidY &&
+        y <= avoidY + avoidHeight
+      );
+    }
+
+    function openTabs() {
+      const screenWidth = window.screen.availWidth;
+      const screenHeight = window.screen.availHeight;
+
+      // Get actual button positions in screen coordinates
+      const startBtn = document.getElementById('startBtn');
+      const stopBtn = document.getElementById('stopBtn');
+
+      const startRect = startBtn.getBoundingClientRect();
+      const stopRect = stopBtn.getBoundingClientRect();
+
+      const avoidLeft = Math.min(startRect.left, stopRect.left);
+      const avoidTop = Math.min(startRect.top, stopRect.top);
+      const avoidRight = Math.max(startRect.right, stopRect.right);
+      const avoidBottom = Math.max(startRect.bottom, stopRect.bottom);
+
+      const avoidX = window.screenX + avoidLeft;
+      const avoidY = window.screenY + avoidTop;
+      const avoidWidth = avoidRight - avoidLeft;
+      const avoidHeight = avoidBottom - avoidTop;
+
+      for (let i = 0; i < 50; i++) {
+        let x, y;
+
+        do {
+          x = Math.floor(Math.random() * (screenWidth - popupWidth));
+          y = Math.floor(Math.random() * (screenHeight - popupHeight));
+        } while (isInsideAvoidZone(x, y, avoidX, avoidY, avoidWidth, avoidHeight));
+
+        const popup = window.open(
+          '',
+          '_blank',
+          `width=${popupWidth},height=${popupHeight},left=${x},top=${y}`
+        );
+
+        if (popup) {
+          // Style the popup
+          popup.document.body.style.background = 'black';
+          popup.document.title = "I'm moving!";
+          popup.document.body.style.margin = '0';
+          popup.document.body.style.height = '100vh';
+          popup.document.body.style.display = 'flex';
+          popup.document.body.style.justifyContent = 'center';
+          popup.document.body.style.alignItems = 'center';
+          popup.document.body.style.color = 'white';
+          popup.document.body.innerHTML = '<h2>Click me!</h2>';
+
+          // Handle mouse click inside popup
+          popup.document.body.addEventListener('click', () => {
+            alert('Popup clicked!');
+          });
+
+          popups.push(popup);
+
+          // Fast random movement
+          let dx = Math.random() < 0.5 ? 6 : -6;
+          let dy = Math.random() < 0.5 ? 6 : -6;
+
+          const moveInterval = setInterval(() => {
+            try {
+              if (popup.closed) {
+                clearInterval(moveInterval);
+                return;
+              }
+
+              x += dx;
+              y += dy;
+
+              if (x <= 0 || x >= screenWidth - popupWidth) dx *= -1;
+              if (y <= 0 || y >= screenHeight - popupHeight) dy *= -1;
+
+              if (isInsideAvoidZone(x, y, avoidX, avoidY, avoidWidth, avoidHeight)) {
+                dx *= -1;
+                dy *= -1;
+                x += dx * 2;
+                y += dy * 2;
+              }
+
+              popup.moveTo(x, y);
+            } catch (e) {
+              clearInterval(moveInterval);
+            }
+          }, 20); // Faster frame rate
+
+          popupMovers.push(moveInterval);
+        }
+      }
+    }
+
+    document.getElementById('startBtn').addEventListener('click', () => {
+      if (intervalId) return;
+      openTabs();
+      intervalId = setInterval(openTabs, 10000);
+      document.getElementById('startBtn').disabled = true;
+      document.getElementById('stopBtn').disabled = false;
+    });
+
+    document.getElementById('stopBtn').addEventListener('click', () => {
+      if (intervalId) clearInterval(intervalId);
+      intervalId = null;
+
+      popups.forEach(p => { if (!p.closed) p.close(); });
+      popupMovers.forEach(m => clearInterval(m));
+
+      popups = [];
+      popupMovers = [];
+
+      document.getElementById('startBtn').disabled = false;
+      document.getElementById('stopBtn').disabled = true;
+    });
+  </script>
+</body>
+</html>
+
+
